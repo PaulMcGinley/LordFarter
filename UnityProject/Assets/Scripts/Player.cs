@@ -1,3 +1,5 @@
+using System.Linq;
+using Unity.Collections;
 using UnityEngine;
 
 public class Player : MonoBehaviour {
@@ -7,6 +9,8 @@ public class Player : MonoBehaviour {
     [SerializeField]
     private GameObject sprite;                                                                              // The player sprite graphic
     float SpriteZ => sprite.transform.position.z;                                                           // The Z position of the sprite
+
+    BoxCollider2D spriteCollider;                                                                           // The collider of the sprite
 
     // Augment values
     float spriteXPos = 0;                                                                                   // The new X position of the sprite
@@ -39,9 +43,13 @@ public class Player : MonoBehaviour {
     float riseSpeed = 0f;                                                                                   // The accumulated speed at which the camera rises
     const float riseSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can rise
 
+    bool onGround = false;                                                                                  // Flag to check if the player is on the ground
+
     const float fallRate = 0.005f;                                                                          // The rate at which the camera falls
     float fallSpeed = 0f;                                                                                   // The accumulated speed at which the camera falls
     const float fallSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can fall
+
+    const float sideMoveSpeed = 0.1f;                                                                       // The speed at which the player moves left or right
 
     Touch touch;                                                                                            // The touch input
 
@@ -61,12 +69,11 @@ public class Player : MonoBehaviour {
     /// Check if the player is rising
     /// </summary>
     /// <returns>True if the player is rising, otherwise false</returns>
-    bool IsRising() {
+    bool IsMovingUp() {
 
         // Keyboard input
-        foreach (KeyCode input in riseInputs)                                                               // Check if any of the rise inputs are pressed
-            if (Input.GetKey(input))                                                                        // Check Keyboard input
-                return true;                                                                                // We are rising
+        if (riseInputs.Any(input => Input.GetKey(input)))                                                   // Check if any of the rise inputs are pressed
+            return true;                                                                                    // We are rising
 
         // Touch input
         if (Input.touchCount > 0)                                                                           // Check if there is a touch input
@@ -83,9 +90,8 @@ public class Player : MonoBehaviour {
     bool IsMovingLeft() {
 
         // Keyboard input
-        foreach (KeyCode input in moveLeftInputs)                                                           // Check if any of the move left inputs are pressed
-            if (Input.GetKey(input))                                                                        // Check Keyboard input
-                return true;                                                                                // We are moving left
+        if (moveLeftInputs.Any(input => Input.GetKey(input)))                                               // Check if any of the move left inputs are pressed
+            return true;                                                                                    // We are moving left
 
         // Touch input
         if (SwipingLeft)                                                                                    // Check if the player is swiping left
@@ -102,9 +108,8 @@ public class Player : MonoBehaviour {
     bool IsMovingRight() {
 
         // Keyboard input
-        foreach (KeyCode input in moveRightInputs)                                                          // Check if any of the move right inputs are pressed
-            if (Input.GetKey(input))                                                                        // Check Keyboard input
-                return true;                                                                                // We are moving right
+        if (moveRightInputs.Any(input => Input.GetKey(input)))                                              // Check if any of the move right inputs are pressed
+            return true;                                                                                    // We are moving right
 
         // Touch input
         if (SwipingRight)                                                                                   // Check if the player is swiping right
@@ -125,6 +130,9 @@ public class Player : MonoBehaviour {
 
         // Get the main camera
         camera = Camera.main;
+
+        // Get the sprite collider
+        spriteCollider = sprite.GetComponent<BoxCollider2D>();
     }
 
 
@@ -158,26 +166,26 @@ public class Player : MonoBehaviour {
         // Check if player is moving left
         if (IsMovingLeft()) {                                                                               // Check if a move left input is triggered
 
-            spriteXPos += -0.1f;                                                                            // Move the sprite left
+            spriteXPos += -sideMoveSpeed;                                                                   // Move the sprite left
 
             if (spriteXPos < cameraXPos)                                                                    // ...
-                cameraXPos += -0.1f;                                                                        // Move the camera left
+                cameraXPos += -sideMoveSpeed;                                                               // Move the camera left
         }
 
         // Check if player is moving right
         if (IsMovingRight()) {                                                                              // Check if a move right input is triggered
 
-            spriteXPos += 0.1f;                                                                             // Move the sprite right
+            spriteXPos += sideMoveSpeed;                                                                    // Move the sprite right
 
             if (spriteXPos > cameraXPos)                                                                    // ...
-                cameraXPos += 0.1f;                                                                         // Move the camera right
+                cameraXPos += sideMoveSpeed;                                                                // Move the camera right
         }
 
         // Check if player is moving up
         isRising = false;                                                                                   // Assume we are not rising
 
         // Rising by player input
-        if (IsRising()) {                                                                                   // Check if the rise input is triggered
+        if (IsMovingUp()) {                                                                                 // Check if the rise input is triggered
 
             isRising = true;                                                                                // Set the isRising flag to true
             riseSpeed += riseRate;                                                                          // Increase the riseSpeed
@@ -185,12 +193,16 @@ public class Player : MonoBehaviour {
         }
 
         // Using up remaining riseSpeed before falling
-        if (!IsRising() && riseSpeed > 0)                                                                   // Use up remaining riseSpeed (momentum)
+        if (!IsMovingUp() && riseSpeed > 0)                                                                 // Use up remaining riseSpeed (momentum)
             riseSpeed -= riseRate * 1.5f;                                                                   // Reduce the riseSpeed at a faster rate
 
         // Falling
-        if (!isRising && CameraY > 0)                                                                       // Check if we are not rising and the camera is above the ground
+        if (!isRising && !onGround)                                                                       // Check if we are not rising and the camera is above the ground
             fallSpeed += fallRate;                                                                          // Increase the fall speed
+
+
+        if (riseSpeed > 0)                                                                                 // Check if the player is rising
+            onGround = false;                                                                               // Set the onGround flag to false
     }
 
 
@@ -223,6 +235,9 @@ public class Player : MonoBehaviour {
     /// </summary>
     void CheckForLanding() {
 
+        if (isRising) return;                                                                              // Skip if the player is rising (no need to check for landing
+        if (onGround) return;                                                                               // Skip if the player is already on the ground
+
         if (CameraY <= 0) {                                                                                 // Check if the camera is at the ground
 
             camera.transform.position = new Vector3(CameraX, 0, CameraZ);                                   // Set the camera to the ground
@@ -231,6 +246,29 @@ public class Player : MonoBehaviour {
             riseSpeed = 0;                                                                                  // Reset the riseSpeed
             currentTouchPosition = Vector2.zero;                                                            // Reset the current touch position
             startTouchPosition = Vector2.zero;                                                              // Reset the start touch position
+            onGround = true;                                                                                // Set the onGround flag to true
+        }
+
+        // Get all Colliders on the map
+        Collider2D[] colliders = FindObjectsOfType<Collider2D>();                                           // Get all colliders in the scene
+
+        foreach (var c in colliders)
+        Debug.LogWarning(c.bounds);
+
+        Debug.LogWarning(colliders.Length);
+        foreach (Collider2D collider in colliders) {                                                        // Loop through all the colliders
+        if (collider == spriteCollider) continue;                                                            // Skip the sprite collider
+            if (collider.bounds.Contains(spriteCollider.bounds.min) ||                                       // Check if the sprite is touching the collider
+                collider.bounds.Contains(spriteCollider.bounds.max)) {                                      // Check if the sprite is touching the collider
+
+                camera.transform.position = new Vector3(CameraX, CameraY, CameraZ);                         // Set the camera to the ground
+                isRising = false;                                                                           // Set the isRising flag to false
+                fallSpeed = 0;                                                                              // Reset the fallSpeed
+                riseSpeed = 0;                                                                              // Reset the riseSpeed
+                currentTouchPosition = Vector2.zero;                                                        // Reset the current touch position
+                startTouchPosition = Vector2.zero;                                                          // Reset the start touch position
+                onGround = true;                                                                            // Set the onGround flag to true
+            }
         }
     }
 
