@@ -1,6 +1,4 @@
-using System;
 using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class Player : MonoBehaviour {
@@ -33,7 +31,6 @@ public class Player : MonoBehaviour {
 
     #endregion
 
-
     #region HighScore Marker
 
     float highScore = 100;                                                                                  // The high score
@@ -42,7 +39,6 @@ public class Player : MonoBehaviour {
     GameObject highScoreMarker;                                                                             // The high score marker (sprite graphic)
 
     #endregion
-
 
     #region Camera
 
@@ -59,7 +55,6 @@ public class Player : MonoBehaviour {
 
     #endregion
 
-
     #region Movement
 
     public bool isRising = false;                                                                           // Flag to check if the camera is rising
@@ -68,7 +63,7 @@ public class Player : MonoBehaviour {
     public float riseSpeed = 0f;                                                                            // The accumulated speed at which the camera rises
     const float riseSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can rise
 
-    bool onGround = false;                                                                                  // Flag to check if the player is on the ground
+    bool onGround = true;                                                                                  // Flag to check if the player is on the ground
 
     const float fallRate = 0.005f;                                                                          // The rate at which the camera falls
     public float fallSpeed = 0f;                                                                            // The accumulated speed at which the camera falls
@@ -146,6 +141,26 @@ public class Player : MonoBehaviour {
 
     #endregion
 
+    #region Sounds
+
+    float nextFartTime = 0;                                                                                 // The next time the player can fart
+
+    [SerializeField]
+    float fartRateMin = 0.1f;                                                                               // The rate at which the player can fart
+
+    [SerializeField]
+    float fartRateMax = 0.5f;                                                                               // The rate at which the player can fart
+
+    AudioSource audioSource;                                                                                // Audio source for the player
+
+    [SerializeField]
+    AudioClip[] landingSounds;                                                                              // Jump sound effect
+
+    [SerializeField]
+    AudioClip[] fartTones;                                                                                  // Fart sound effects
+    float audioSourceStartingPitch;                                                                         // The starting pitch of the audio source (default pitch)
+
+    #endregion
 
     // Start is called before the first frame update
     void Start() {
@@ -158,6 +173,12 @@ public class Player : MonoBehaviour {
 
         // Get the sprite collider
         spriteCollider = sprite.GetComponent<BoxCollider2D>();
+
+        // Get the audio source
+        audioSource = GetComponent<AudioSource>();
+
+        // Get the fart tone starting pitch
+        audioSourceStartingPitch = audioSource.pitch;
     }
 
 
@@ -188,8 +209,10 @@ public class Player : MonoBehaviour {
         // Touch input
         if (Input.touchCount == 1) {                                                                        // Check if there is a touch input (only one touch at a time for better control)
 
-            if (Input.GetTouch(0).phase == TouchPhase.Began)                                                // Check if the touch has just started
+            if (Input.GetTouch(0).phase == TouchPhase.Began) {                                              // Check if the touch has just started
+
                 startTouchPosition = Input.GetTouch(0).position;                                            // Set the start touch position
+            }
 
             touch = Input.GetTouch(0);                                                                      // Get the touch input
 
@@ -199,6 +222,8 @@ public class Player : MonoBehaviour {
 
             startTouchPosition = Vector2.zero;                                                              // Reset the start touch position
             currentTouchPosition = Vector2.zero;                                                            // Reset the current touch position
+
+           // audioSource.pitch = audioSourceStartingPitch;                                                   // Reset the pitch of the audio source
         }
 
         // Check if player is moving left
@@ -235,6 +260,15 @@ public class Player : MonoBehaviour {
             riseSpeed += riseRate;                                                                          // Increase the riseSpeed
             fallSpeed -= fallRate * 0.5f;                                                                   // Reduce the fallSpeed
             gas -= 1;                                                                                       // Reduce the gas
+
+            if (audioSource.pitch < 3f)                                                                     // Check if the pitch is not too high
+                audioSource.pitch += 0.001f;                                                                // Set the pitch of the audio source
+
+            if (Time.time > nextFartTime) {                                                                 // Check if the player can fart
+
+                nextFartTime = Time.time + Random.Range(fartRateMin/ audioSource.pitch, fartRateMax/audioSource.pitch);                          // Set the next time the player can fart
+                audioSource.PlayOneShot(fartTones[Random.Range(0, fartTones.Length - 1)]);                  // Play the fart sound effect
+            }
         }
 
         if (gas < 0) gas = 0;                                                                               // Check if the gas is empty, we don't want negative gas
@@ -330,6 +364,8 @@ public class Player : MonoBehaviour {
             currentTouchPosition = Vector2.zero;                                                            // Reset the current touch position
             startTouchPosition = Vector2.zero;                                                              // Reset the start touch position
             onGround = true;                                                                                // Set the onGround flag to true
+
+            audioSource.PlayOneShot(landingSounds[Random.Range(0, landingSounds.Length -1)]);                  // Play the landing sound
         }
     }
 
