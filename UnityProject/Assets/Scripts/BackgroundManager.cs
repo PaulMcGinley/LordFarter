@@ -1,8 +1,11 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class BackgroundManager : MonoBehaviour {
+
+    [SerializeField]
+    GameObject player;
+
+    Camera camera;
 
     [SerializeField]
     private GameObject[] backgrounds = new GameObject[3];
@@ -17,11 +20,6 @@ public class BackgroundManager : MonoBehaviour {
     float playerFallSpeed => player.GetComponent<Player>().fallSpeed;
     bool isPlayerRising => player.GetComponent<Player>().isRising;
 
-    [SerializeField]
-    GameObject player;
-
-    Camera camera;
-
     // Start is called before the first frame update
     void Start() {
 
@@ -31,11 +29,8 @@ public class BackgroundManager : MonoBehaviour {
     // Update is called once per frame
     void Update() {
 
-        backgrounds[0].transform.position = new Vector3(camera.transform.position.x, camera.transform.position.y, 0);
-        backgrounds[1].transform.position = new Vector3(camera.transform.position.x, camera.transform.position.y - (camera.transform.position.y/1000), 0);
-        backgrounds[2].transform.position = new Vector3(camera.transform.position.x, camera.transform.position.y - (camera.transform.position.y/100), 0);
-       // backgrounds[1].transform.localScale = new Vector3(1, bg1Scale, 1);
-
-       //backgrounds[2].transform.localScale = new Vector3(5, isPlayerRising ? bg2ScaleRise : bg2ScaleFall, 1);
+        backgrounds[0].transform.position = new Vector3(player.transform.position.x, camera.transform.position.y, 0);
+        backgrounds[1].transform.position = new Vector3(player.transform.position.x - (player.transform.position.x/1000), camera.transform.position.y - (camera.transform.position.y/1000), 0);
+        backgrounds[2].transform.position = new Vector3(player.transform.position.x - (player.transform.position.x/100), camera.transform.position.y - (camera.transform.position.y/100), 0);
     }
 }

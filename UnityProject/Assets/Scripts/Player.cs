@@ -13,8 +13,14 @@ public class Player : MonoBehaviour {
     GameObject sprite;                                                                                      // The player sprite graphic
     float SpriteZ => sprite.transform.position.z;                                                           // The Z position of the sprite
 
+    [SerializeField]
+    GameObject goSprite;
+
+    [SerializeField]
+    GameObject byeSprite;
+
     // Augment values
-    float spriteXPos = 0;                                                                                   // The new X position of the sprite
+    public float spriteXPos = 0;                                                                                   // The new X position of the sprite
 
     Vector3 NewSpritePosition => new(spriteXPos, CameraY-3, SpriteZ);                                       // Lambda expression to return the new sprite position
 
@@ -37,7 +43,6 @@ public class Player : MonoBehaviour {
     #endregion
 
 
-
     #region Camera
 
     new Camera camera;                                                                                      // Game camera
@@ -57,6 +62,7 @@ public class Player : MonoBehaviour {
     #region Movement
 
     public bool isRising = false;                                                                                  // Flag to check if the camera is rising
+    bool isFalling => !isRising && !onGround && fallSpeed > riseSpeed;                                                                             // Flag to check if the camera is falling
     const float riseRate = 0.005f;                                                                          // The rate at which the camera rises
     public float riseSpeed = 0f;                                                                                   // The accumulated speed at which the camera rises
     const float riseSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can rise
@@ -196,6 +202,30 @@ public class Player : MonoBehaviour {
 
 
         CheckForLanding();                                                                                  // Check if the player has landed on the ground or platform
+
+        SwitchSprite();                                                                                     // Switch the sprite graphic
+    }
+
+    private void SwitchSprite() {
+
+        if (isRising) {
+
+            goSprite.SetActive(true);
+            sprite.SetActive(false);
+            byeSprite.SetActive(false);
+        }
+        else if (isFalling) {
+
+            goSprite.SetActive(false);
+            sprite.SetActive(false);
+            byeSprite.SetActive(true);
+        }
+        else { // on ground
+
+            goSprite.SetActive(false);
+            sprite.SetActive(true);
+            byeSprite.SetActive(false);
+        }
     }
 
 
@@ -228,6 +258,11 @@ public class Player : MonoBehaviour {
             touch = Input.GetTouch(0);                                                                      // Get the touch input
 
             currentTouchPosition = touch.position;                                                          // Set the current touch position
+        }
+        else {
+
+            startTouchPosition = Vector2.zero;                                                              // Reset the start touch position
+            currentTouchPosition = Vector2.zero;                                                            // Reset the current touch position
         }
 
         // Check if player is moving left
@@ -270,11 +305,11 @@ public class Player : MonoBehaviour {
 
         // Using up remaining riseSpeed before falling
         if ((!IsMovingUp() || gas == 0) && riseSpeed > 0)                                                                 // Use up remaining riseSpeed (momentum)
-            riseSpeed -= riseRate * 1.5f;                                                                   // Reduce the riseSpeed at a faster rate
+            riseSpeed -= riseRate * .5f;                                                                   // Reduce the riseSpeed at a slower rate
 
         // Falling
         if (!isRising && !onGround)                                                                       // Check if we are not rising and the camera is above the ground
-            fallSpeed += fallRate;                                                                          // Increase the fall speed
+            fallSpeed += fallRate / (riseSpeed > 0 ? 2 : 1);                                              // If we still have riseSpeed, reduce the fallSpeed for a smoother transition
 
 
         if (riseSpeed > 0)                                                                                 // Check if the player is rising
@@ -303,7 +338,10 @@ public class Player : MonoBehaviour {
 
         // Set the new positions
         camera.transform.position = NewCameraPosition;                                                      // Set the new camera position
+
         sprite.transform.position = NewSpritePosition;                                                      // Set the new sprite position
+        goSprite.transform.position = NewSpritePosition;                                                    // Set the new sprite position
+        byeSprite.transform.position = NewSpritePosition;                                                   // Set the new sprite position
     }
 
     /// <summary>
@@ -357,10 +395,10 @@ public class Player : MonoBehaviour {
         string _height = $"Height: {cameraYPos:0.00m}";
         string _gas = $"Gas: {gas:0.00}";
 
-        DrawOutlinedText(_score, new Vector2(10, 10));
-        DrawOutlinedText(_height, new Vector2(10, 60));
+        DrawOutlinedText(_score, new Vector2(50, 10));
+        DrawOutlinedText(_height, new Vector2(50, 60));
 
-        DrawOutlinedText(_gas, new Vector2(10, Screen.height - 50));
+        DrawOutlinedText(_gas, new Vector2(50, Screen.height - 50));
     }
 
     void DrawOutlinedText(string text, Vector2 position) {
