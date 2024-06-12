@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -27,7 +28,7 @@ public class Player : MonoBehaviour {
 
     // Game
     float score = 0;                                                                                        // The player's score
-    float gas = 1000;                                                                                       // Fart power
+    public float gas = 1000;                                                                                       // Fart power
 
     #endregion
 
@@ -63,7 +64,7 @@ public class Player : MonoBehaviour {
     public float riseSpeed = 0f;                                                                            // The accumulated speed at which the camera rises
     const float riseSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can rise
 
-    bool onGround = true;                                                                                  // Flag to check if the player is on the ground
+    public bool onGround = true;                                                                                  // Flag to check if the player is on the ground
 
     const float fallRate = 0.005f;                                                                          // The rate at which the camera falls
     public float fallSpeed = 0f;                                                                            // The accumulated speed at which the camera falls
@@ -160,6 +161,14 @@ public class Player : MonoBehaviour {
     AudioClip[] fartTones;                                                                                  // Fart sound effects
     float audioSourceStartingPitch;                                                                         // The starting pitch of the audio source (default pitch)
 
+    [SerializeField]
+    AudioClip[] screamSounds;                                                                               // Scream sound effects
+
+    [SerializeField]
+    AudioClip inhaleSound;                                                                                  // Inhale sound effect
+
+    Queue<AudioClip> screamQueue = new();                                                                   // Queue of scream sound effects
+
     #endregion
 
     // Start is called before the first frame update
@@ -179,8 +188,39 @@ public class Player : MonoBehaviour {
 
         // Get the fart tone starting pitch
         audioSourceStartingPitch = audioSource.pitch;
+
+        for (int i = 0; i < 500; i++) {                                                                     // Add 500 scream sound effects to the queue
+
+            screamQueue.Enqueue(screamSounds[Random.Range(0, screamSounds.Length - 1)]);                    // Add a random scream sound effect to the queue
+            screamQueue.Enqueue(inhaleSound);                                                               // Add the inhale sound effect to the queue
+        }
     }
 
+    public void Restart() {
+
+        Debug.Log("Restarting Player");                                                                       // Log that the game is restarting
+
+        // Reset the player
+        score = 0;                                                                                          // Reset the score
+        gas = 1000;                                                                                         // Reset the gas
+        cameraYPos = 0;                                                                                     // Reset the camera Y position
+        cameraXPos = 0;                                                                                     // Reset the camera X position
+        spriteXPos = 0;                                                                                     // Reset the sprite X position
+        riseSpeed = 0;                                                                                      // Reset the rise speed
+        fallSpeed = 0;                                                                                      // Reset the fall speed
+        isRising = false;                                                                                   // Reset the isRising flag
+        onGround = true;                                                                                    // Reset the onGround flag
+        startTouchPosition = Vector2.zero;                                                                  // Reset the start touch position
+        currentTouchPosition = Vector2.zero;                                                                // Reset the current touch position
+        audioSource.pitch = audioSourceStartingPitch;                                                       // Reset the pitch of the audio source
+        screamQueue.Clear();                                                                                // Clear the scream queue
+
+        for (int i = 0; i < 500; i++) {                                                                     // Add 500 scream sound effects to the queue
+
+            screamQueue.Enqueue(screamSounds[Random.Range(0, screamSounds.Length - 1)]);                    // Add a random scream sound effect to the queue
+            screamQueue.Enqueue(inhaleSound);                                                               // Add the inhale sound effect to the queue
+        }
+    }
 
     // Update is called once per frame
     void Update() {
@@ -196,6 +236,27 @@ public class Player : MonoBehaviour {
         CheckForLanding();                                                                                  // Check if the player has landed on the ground or platform
 
         SwitchSprite();                                                                                     // Switch the sprite graphic
+
+        if (isFalling)                                                                                      // Check if the player is rising or falling
+            ProcessScreamQueue();                                                                           // Play the scream sound effects
+
+        if (gas <= 0 && cameraYPos <= 0)
+            ShowRestartButton();
+    }
+
+    private void ShowRestartButton() {
+
+      // Find a button called Button and make it active
+        GameObject.Find("Button").SetActive(true);
+        GameObject.Find("Button").GetComponent<UnityEngine.UI.Button>().interactable = true;
+    }
+
+    private void ProcessScreamQueue() {
+
+        if (screamQueue.Count == 0) return;                                                                 // Check if the scream queue is empty
+
+        if (!audioSource.isPlaying)                                                                         // Check if the audio source is not playing
+            audioSource.PlayOneShot(screamQueue.Dequeue());                                                 // Play the next sound effect in the queue
     }
 
     #region Update Functions
@@ -223,7 +284,9 @@ public class Player : MonoBehaviour {
             startTouchPosition = Vector2.zero;                                                              // Reset the start touch position
             currentTouchPosition = Vector2.zero;                                                            // Reset the current touch position
 
-           // audioSource.pitch = audioSourceStartingPitch;                                                   // Reset the pitch of the audio source
+#if !UNITY_EDITOR // testing, this directive around the code should be removed, makes for funnier falling screams
+            audioSource.pitch = audioSourceStartingPitch;                                                   // Reset the pitch of the audio source
+#endif
         }
 
         // Check if player is moving left
@@ -266,7 +329,7 @@ public class Player : MonoBehaviour {
 
             if (Time.time > nextFartTime) {                                                                 // Check if the player can fart
 
-                nextFartTime = Time.time + Random.Range(fartRateMin/ audioSource.pitch, fartRateMax/audioSource.pitch);                          // Set the next time the player can fart
+                nextFartTime = Time.time + Random.Range(fartRateMin / audioSource.pitch, fartRateMax / audioSource.pitch);                          // Set the next time the player can fart (use pitch to adjust the rate of farting)
                 audioSource.PlayOneShot(fartTones[Random.Range(0, fartTones.Length - 1)]);                  // Play the fart sound effect
             }
         }
@@ -365,7 +428,7 @@ public class Player : MonoBehaviour {
             startTouchPosition = Vector2.zero;                                                              // Reset the start touch position
             onGround = true;                                                                                // Set the onGround flag to true
 
-            audioSource.PlayOneShot(landingSounds[Random.Range(0, landingSounds.Length -1)]);                  // Play the landing sound
+            audioSource.PlayOneShot(landingSounds[Random.Range(0, landingSounds.Length - 1)]);              // Play the landing sound
         }
     }
 
@@ -425,14 +488,16 @@ public class Player : MonoBehaviour {
         // GUI.Label(new Rect(10, 350, 100, 20), "Is Rising: " + isRising, new GUIStyle() { fontSize = 50 , normal = new GUIStyleState() { textColor = isRising ? Color.green : Color.red }});
 #endif
 
-        string _score = $"Score: {score.ToString("0.00")}m";
-        string _height = $"Height: {cameraYPos:0.00m}";
-        string _gas = $"Gas: {gas:0.00}";
+        string _score = $"Score:  {score.ToString("0.00")} m";
+        string _height = $"Height: {cameraYPos:0.00 m}";
+        string _gas = $"Gas: {gas:0.00} mB";
+        string _speed = $"Speed: {(riseSpeed-fallSpeed)*120:0.00} m/s";
 
         DrawOutlinedText(_score, new Vector2(50, 10));
         DrawOutlinedText(_height, new Vector2(50, 60));
 
         DrawOutlinedText(_gas, new Vector2(50, Screen.height - 50));
+        DrawOutlinedText(_speed, new Vector2(50, Screen.height - 100));
     }
 
     void DrawOutlinedText(string text, Vector2 position) {
