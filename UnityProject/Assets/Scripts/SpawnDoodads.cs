@@ -13,17 +13,6 @@ public class SpawnDoodads : MonoBehaviour {
     float minYDistance = 50;                                                                                // The minimum distance between satellites
     float maxYDistance = 100;                                                                               // The maximum distance between satellites
 
-    [SerializeField]
-    GameObject prefabUFO;
-    GameObject[] UFOs;
-
-    int UFOCount = 10;
-    float UFOxRange = 2.5f;
-    float UFOyRange = 2.5f;
-    float lastUFOY = 0;
-    float minUFOYDistance = 20;
-    float maxUFOYDistance = 50;
-
 
     // Start is called before the first frame update
     void Start() {
@@ -44,14 +33,11 @@ public class SpawnDoodads : MonoBehaviour {
 
             satellites[i] = Instantiate(prefabSatellite, new Vector3(x, y, 0), Quaternion.identity);        // Instantiate the satellite prefab
             satellitesShadow[i] = Instantiate(prefabSatellite, new Vector3(x, y, 0), Quaternion.identity);  // Instantiate the satellite shadow prefab
+
             satellites[i].transform.localScale = new Vector3((flip ? -scale : scale), scale, 0);            // Set the scale of the satellite
             satellitesShadow[i].transform.localScale = new Vector3((flip ? -scale : scale), scale, 0);      // Set the scale of the satellite shadow
 
             satellitesShadow[i].transform.GetChild(0).GetComponent<SpriteRenderer>().color = new Color(0, 0, 0, 1-scale);   // Set the color of the satellite shadow
         }
-    }
-
-    // Update is called once per frame
-    void Update() {
     }
 }

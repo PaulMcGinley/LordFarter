@@ -10,17 +10,17 @@ public class Player : MonoBehaviour {
     // Sprite
 
     [SerializeField]
-    GameObject sprite;                                                                                      // The player sprite graphic
+    GameObject sprite;                                                                                      // The player sprite graphic (idle sprite)
     float SpriteZ => sprite.transform.position.z;                                                           // The Z position of the sprite
 
     [SerializeField]
-    GameObject goSprite;
+    GameObject goSprite;                                                                                    // Henry is going up sprite
 
     [SerializeField]
-    GameObject byeSprite;
+    GameObject byeSprite;                                                                                   // Henry is falling sprite
 
     // Augment values
-    public float spriteXPos = 0;                                                                                   // The new X position of the sprite
+    public float spriteXPos = 0;                                                                            // The new X position of the sprite
 
     Vector3 NewSpritePosition => new(spriteXPos, CameraY-3, SpriteZ);                                       // Lambda expression to return the new sprite position
 
@@ -36,9 +36,10 @@ public class Player : MonoBehaviour {
 
     #region HighScore Marker
 
-    float highScore = 100;                                                                                    // The high score
+    float highScore = 100;                                                                                  // The high score
+
     [SerializeField]
-    GameObject highScoreMarker;                                                                             // The high score marker
+    GameObject highScoreMarker;                                                                             // The high score marker (sprite graphic)
 
     #endregion
 
@@ -61,16 +62,16 @@ public class Player : MonoBehaviour {
 
     #region Movement
 
-    public bool isRising = false;                                                                                  // Flag to check if the camera is rising
-    bool isFalling => !isRising && !onGround && fallSpeed > riseSpeed;                                                                             // Flag to check if the camera is falling
+    public bool isRising = false;                                                                           // Flag to check if the camera is rising
+    bool isFalling => !isRising && !onGround && fallSpeed > riseSpeed;                                      // Flag to check if the camera is falling
     const float riseRate = 0.005f;                                                                          // The rate at which the camera rises
-    public float riseSpeed = 0f;                                                                                   // The accumulated speed at which the camera rises
+    public float riseSpeed = 0f;                                                                            // The accumulated speed at which the camera rises
     const float riseSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can rise
 
     bool onGround = false;                                                                                  // Flag to check if the player is on the ground
 
     const float fallRate = 0.005f;                                                                          // The rate at which the camera falls
-    public float fallSpeed = 0f;                                                                                   // The accumulated speed at which the camera falls
+    public float fallSpeed = 0f;                                                                            // The accumulated speed at which the camera falls
     const float fallSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can fall
 
     const float sideMoveSpeed = 0.1f;                                                                       // The speed at which the player moves left or right
@@ -167,81 +168,16 @@ public class Player : MonoBehaviour {
 
         MovePlayer();                                                                                       // Move the player according to the user input
 
-        // Move box collider with sprite
-       // spriteCollider.transform.position = sprite.transform.position;                                       // Move the collider with the sprite
+        CheckHighScore();                                                                                   // Check the high score and update the marker
 
-        if (cameraYPos > score)                                                                             // Check if the camera has moved up
-            score = cameraYPos;                                                                             // Set the new score (height of the camera
-
-        if (score > highScore)                                                                              // Check if the score is higher than the high score
-            highScore = score;                                                                              // Set the new high score
-
-        highScoreMarker.transform.position = new Vector3(highScoreMarker.transform.position.x, highScore-1, highScoreMarker.transform.position.z); // Move the high score marker
-
-        // Get all BoxCollider2d objects in the scene
-        BoxCollider2D[] colliders = FindObjectsOfType<BoxCollider2D>();
-
-        // Check if the player has collided with any of the colliders
-        foreach (BoxCollider2D collider in colliders) {
-
-            if (collider.bounds.Contains(sprite.transform.position)) {                                       // Check if the collider contains the sprite
-
-            if (collider == spriteCollider) continue;                                                      // Skip if the collider is the sprite collider (we don't want to collide with ourselves
-
-                Debug.LogWarning("Collision detected");
-                Debug.LogWarning(collider.gameObject.name);
-
-                if (collider.gameObject.CompareTag("BeanPickup")) {
-
-                    gas += 100;                                                                             // Increase the gas
-                    // If you want to destroy the BeanPickup after the collision
-                    Destroy(collider.gameObject);
-                }
-            }
-        }
-
+        CheckForCollisions();                                                                               // Check if the player has collided with any objects
 
         CheckForLanding();                                                                                  // Check if the player has landed on the ground or platform
 
         SwitchSprite();                                                                                     // Switch the sprite graphic
     }
 
-    private void SwitchSprite() {
-
-        if (isRising) {
-
-            goSprite.SetActive(true);
-            sprite.SetActive(false);
-            byeSprite.SetActive(false);
-        }
-        else if (isFalling) {
-
-            goSprite.SetActive(false);
-            sprite.SetActive(false);
-            byeSprite.SetActive(true);
-        }
-        else { // on ground
-
-            goSprite.SetActive(false);
-            sprite.SetActive(true);
-            byeSprite.SetActive(false);
-        }
-    }
-
-
-
-    // void OnTriggerEnter2D(Collider2D other) {
-
-    //     Debug.LogWarning("Collision detected");
-    //     Debug.LogWarning(other.gameObject.name);
-
-    //     if (other.gameObject.CompareTag("BeanPickup")) {
-
-    //         gas += 100;                                                                                     // Increase the gas
-    //         // If you want to destroy the BeanPickup after the collision
-    //         Destroy(other.gameObject);
-    //     }
-    // }
+    #region Update Functions
 
 
     /// <summary>
@@ -259,7 +195,7 @@ public class Player : MonoBehaviour {
 
             currentTouchPosition = touch.position;                                                          // Set the current touch position
         }
-        else {
+        else {                                                                                              // No touch input
 
             startTouchPosition = Vector2.zero;                                                              // Reset the start touch position
             currentTouchPosition = Vector2.zero;                                                            // Reset the current touch position
@@ -304,15 +240,15 @@ public class Player : MonoBehaviour {
         if (gas < 0) gas = 0;                                                                               // Check if the gas is empty, we don't want negative gas
 
         // Using up remaining riseSpeed before falling
-        if ((!IsMovingUp() || gas == 0) && riseSpeed > 0)                                                                 // Use up remaining riseSpeed (momentum)
-            riseSpeed -= riseRate * .5f;                                                                   // Reduce the riseSpeed at a slower rate
+        if ((!IsMovingUp() || gas == 0) && riseSpeed > 0)                                                   // Use up remaining riseSpeed (momentum)
+            riseSpeed -= riseRate * 0.5f;                                                                   // Reduce the riseSpeed at a slower rate
 
         // Falling
-        if (!isRising && !onGround)                                                                       // Check if we are not rising and the camera is above the ground
-            fallSpeed += fallRate / (riseSpeed > 0 ? 2 : 1);                                              // If we still have riseSpeed, reduce the fallSpeed for a smoother transition
+        if (!isRising && !onGround)                                                                         // Check if we are not rising and the camera is above the ground
+            fallSpeed += fallRate / (riseSpeed > 0 ? 2 : 1);                                                // If we still have riseSpeed, reduce the fallSpeed for a smoother transition
 
-
-        if (riseSpeed > 0)                                                                                 // Check if the player is rising
+        // Check if the player is on the ground
+        if (riseSpeed > 0)                                                                                  // Check if the player is rising
             onGround = false;                                                                               // Set the onGround flag to false
     }
 
@@ -334,7 +270,7 @@ public class Player : MonoBehaviour {
 
         // Limit the camera X positions
         cameraXPos = Mathf.Clamp(cameraXPos, -2.5f, 2.5f);                                                  // Limit the X position of the camera
-        cameraYPos = Mathf.Clamp(cameraYPos, 0, float.MaxValue);                                                        // Limit the Y position of the camera
+        cameraYPos = Mathf.Clamp(cameraYPos, 0, float.MaxValue);                                            // Limit the Y position of the camera
 
         // Set the new positions
         camera.transform.position = NewCameraPosition;                                                      // Set the new camera position
@@ -344,12 +280,45 @@ public class Player : MonoBehaviour {
         byeSprite.transform.position = NewSpritePosition;                                                   // Set the new sprite position
     }
 
+
+    private void CheckHighScore() {
+
+        if (cameraYPos > score)                                                                             // Check if the camera has moved up
+            score = cameraYPos;                                                                             // Set the new score (height of the camera
+
+        if (score > highScore)                                                                              // Check if the score is higher than the high score
+            highScore = score;                                                                              // Set the new high score
+
+        highScoreMarker.transform.position = new Vector3(highScoreMarker.transform.position.x, highScore-1, highScoreMarker.transform.position.z); // Move the high score marker
+    }
+
+    /// <summary>
+    /// Check if the player has collided with any objects
+    /// </summary>
+    void CheckForCollisions() {
+
+        BoxCollider2D[] colliders = FindObjectsOfType<BoxCollider2D>();                                     // Get all the colliders in the scene
+
+        foreach (BoxCollider2D collider in colliders)                                                       // Loop through all the colliders
+            if (collider.bounds.Contains(sprite.transform.position)) {                                      // Check if the collider contains the sprite
+
+                if (collider == spriteCollider) continue;                                                   // Skip if the collider is the sprite collider (we don't want to collide with ourselves
+
+                if (collider.gameObject.CompareTag("BeanPickup")) {                                         // Check if the collider is a bean pickup
+
+                    gas += 100;                                                                             // Increase the players gas
+                    Destroy(collider.gameObject);                                                           // Remove the object
+                }
+            }
+    }
+
+
     /// <summary>
     /// Check if the player has landed on the ground or platform
     /// </summary>
     void CheckForLanding() {
 
-        if (isRising) return;                                                                              // Skip if the player is rising (no need to check for landing
+        if (isRising) return;                                                                               // Skip if the player is rising (no need to check for landing
         if (onGround) return;                                                                               // Skip if the player is already on the ground
 
         if (CameraY <= 0) {                                                                                 // Check if the camera is at the ground
@@ -364,6 +333,35 @@ public class Player : MonoBehaviour {
         }
     }
 
+
+    /// <summary>
+    /// Switch the sprite graphic based on the player's movement
+    /// </summary>
+    private void SwitchSprite() {
+
+        if (isRising) {
+
+            goSprite.SetActive(true);
+            sprite.SetActive(false);
+            byeSprite.SetActive(false);
+        }
+        else if (isFalling) {
+
+            goSprite.SetActive(false);
+            sprite.SetActive(false);
+            byeSprite.SetActive(true);
+        }
+        // If for rising or falling that means we are not moving
+        else {
+
+            goSprite.SetActive(false);
+            sprite.SetActive(true);
+            byeSprite.SetActive(false);
+        }
+    }
+
+
+    #endregion
 
     /// <summary>
     /// Draw the debug information on the screen
@@ -406,6 +404,8 @@ public class Player : MonoBehaviour {
         GUIStyle style = new GUIStyle() { fontSize = 50, fontStyle = FontStyle.Bold, normal = new GUIStyleState() { textColor = Color.black } };
 
         // Draw the outline
+        // I do this by drawing the text 8 times around the original text with a slight offset xD
+        // This obviously is not the best way to do it but it works for now!
         GUI.Label(new Rect(position.x - 1, position.y - 1, 100, 20), text, style);
         GUI.Label(new Rect(position.x + 1, position.y + 1, 100, 20), text, style);
         GUI.Label(new Rect(position.x - 1, position.y + 1, 100, 20), text, style);
@@ -417,7 +417,7 @@ public class Player : MonoBehaviour {
         GUI.Label(new Rect(position.x, position.y - 2, 100, 20), text, style);
 
         // Draw the text
-        style.normal.textColor = Color.white;
-        GUI.Label(new Rect(position.x, position.y, 100, 20), text, style);
+        style.normal.textColor = Color.white;                                                               // Set the text color to white
+        GUI.Label(new Rect(position.x, position.y, 100, 20), text, style);                                  // Draw the text again
     }
 }
