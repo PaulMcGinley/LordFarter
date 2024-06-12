@@ -1,23 +1,41 @@
+using System;
 using System.Linq;
-using Unity.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class Player : MonoBehaviour {
 
-    #region Player Sprite
+    #region Player
+
+    // Sprite
 
     [SerializeField]
-    private GameObject sprite;                                                                              // The player sprite graphic
+    GameObject sprite;                                                                                      // The player sprite graphic
     float SpriteZ => sprite.transform.position.z;                                                           // The Z position of the sprite
-
-    BoxCollider2D spriteCollider;                                                                           // The collider of the sprite
 
     // Augment values
     float spriteXPos = 0;                                                                                   // The new X position of the sprite
 
     Vector3 NewSpritePosition => new(spriteXPos, CameraY-3, SpriteZ);                                       // Lambda expression to return the new sprite position
 
+    // Collision
+    BoxCollider2D spriteCollider;                                                                           // The collider of the sprite
+
+    // Game
+    float score = 0;                                                                                        // The player's score
+    float gas = 1000;                                                                                       // Fart power
+
     #endregion
+
+
+    #region HighScore Marker
+
+    float highScore = 100;                                                                                    // The high score
+    [SerializeField]
+    GameObject highScoreMarker;                                                                             // The high score marker
+
+    #endregion
+
 
 
     #region Camera
@@ -38,15 +56,15 @@ public class Player : MonoBehaviour {
 
     #region Movement
 
-    bool isRising = false;                                                                                  // Flag to check if the camera is rising
+    public bool isRising = false;                                                                                  // Flag to check if the camera is rising
     const float riseRate = 0.005f;                                                                          // The rate at which the camera rises
-    float riseSpeed = 0f;                                                                                   // The accumulated speed at which the camera rises
+    public float riseSpeed = 0f;                                                                                   // The accumulated speed at which the camera rises
     const float riseSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can rise
 
     bool onGround = false;                                                                                  // Flag to check if the player is on the ground
 
     const float fallRate = 0.005f;                                                                          // The rate at which the camera falls
-    float fallSpeed = 0f;                                                                                   // The accumulated speed at which the camera falls
+    public float fallSpeed = 0f;                                                                                   // The accumulated speed at which the camera falls
     const float fallSpeedMax = 0.5f;                                                                        // The maximum speed at which the camera can fall
 
     const float sideMoveSpeed = 0.1f;                                                                       // The speed at which the player moves left or right
@@ -143,8 +161,57 @@ public class Player : MonoBehaviour {
 
         MovePlayer();                                                                                       // Move the player according to the user input
 
+        // Move box collider with sprite
+       // spriteCollider.transform.position = sprite.transform.position;                                       // Move the collider with the sprite
+
+        if (cameraYPos > score)                                                                             // Check if the camera has moved up
+            score = cameraYPos;                                                                             // Set the new score (height of the camera
+
+        if (score > highScore)                                                                              // Check if the score is higher than the high score
+            highScore = score;                                                                              // Set the new high score
+
+        highScoreMarker.transform.position = new Vector3(highScoreMarker.transform.position.x, highScore-1, highScoreMarker.transform.position.z); // Move the high score marker
+
+        // Get all BoxCollider2d objects in the scene
+        BoxCollider2D[] colliders = FindObjectsOfType<BoxCollider2D>();
+
+        // Check if the player has collided with any of the colliders
+        foreach (BoxCollider2D collider in colliders) {
+
+            if (collider.bounds.Contains(sprite.transform.position)) {                                       // Check if the collider contains the sprite
+
+            if (collider == spriteCollider) continue;                                                      // Skip if the collider is the sprite collider (we don't want to collide with ourselves
+
+                Debug.LogWarning("Collision detected");
+                Debug.LogWarning(collider.gameObject.name);
+
+                if (collider.gameObject.CompareTag("BeanPickup")) {
+
+                    gas += 100;                                                                             // Increase the gas
+                    // If you want to destroy the BeanPickup after the collision
+                    Destroy(collider.gameObject);
+                }
+            }
+        }
+
+
         CheckForLanding();                                                                                  // Check if the player has landed on the ground or platform
     }
+
+
+
+    // void OnTriggerEnter2D(Collider2D other) {
+
+    //     Debug.LogWarning("Collision detected");
+    //     Debug.LogWarning(other.gameObject.name);
+
+    //     if (other.gameObject.CompareTag("BeanPickup")) {
+
+    //         gas += 100;                                                                                     // Increase the gas
+    //         // If you want to destroy the BeanPickup after the collision
+    //         Destroy(other.gameObject);
+    //     }
+    // }
 
 
     /// <summary>
@@ -166,6 +233,9 @@ public class Player : MonoBehaviour {
         // Check if player is moving left
         if (IsMovingLeft()) {                                                                               // Check if a move left input is triggered
 
+            if (isRising)                                                                                   // Check if the player is rising
+                gas -= 0.1f;                                                                                // Reduce the gas by a small amount (free if falling)
+
             spriteXPos += -sideMoveSpeed;                                                                   // Move the sprite left
 
             if (spriteXPos < cameraXPos)                                                                    // ...
@@ -174,6 +244,9 @@ public class Player : MonoBehaviour {
 
         // Check if player is moving right
         if (IsMovingRight()) {                                                                              // Check if a move right input is triggered
+
+            if (isRising)                                                                                   // Check if the player is rising
+                gas -= 0.1f;                                                                                // Reduce the gas by a small amount (free if falling)
 
             spriteXPos += sideMoveSpeed;                                                                    // Move the sprite right
 
@@ -185,15 +258,18 @@ public class Player : MonoBehaviour {
         isRising = false;                                                                                   // Assume we are not rising
 
         // Rising by player input
-        if (IsMovingUp()) {                                                                                 // Check if the rise input is triggered
+        if (IsMovingUp() && gas > 0) {                                                                      // Check if the rise input is triggered
 
             isRising = true;                                                                                // Set the isRising flag to true
             riseSpeed += riseRate;                                                                          // Increase the riseSpeed
             fallSpeed -= fallRate * 0.5f;                                                                   // Reduce the fallSpeed
+            gas -= 1;                                                                                       // Reduce the gas
         }
 
+        if (gas < 0) gas = 0;                                                                               // Check if the gas is empty, we don't want negative gas
+
         // Using up remaining riseSpeed before falling
-        if (!IsMovingUp() && riseSpeed > 0)                                                                 // Use up remaining riseSpeed (momentum)
+        if ((!IsMovingUp() || gas == 0) && riseSpeed > 0)                                                                 // Use up remaining riseSpeed (momentum)
             riseSpeed -= riseRate * 1.5f;                                                                   // Reduce the riseSpeed at a faster rate
 
         // Falling
@@ -223,7 +299,7 @@ public class Player : MonoBehaviour {
 
         // Limit the camera X positions
         cameraXPos = Mathf.Clamp(cameraXPos, -2.5f, 2.5f);                                                  // Limit the X position of the camera
-        cameraYPos = Mathf.Clamp(cameraYPos, 0, 80);                                                        // Limit the Y position of the camera
+        cameraYPos = Mathf.Clamp(cameraYPos, 0, float.MaxValue);                                                        // Limit the Y position of the camera
 
         // Set the new positions
         camera.transform.position = NewCameraPosition;                                                      // Set the new camera position
@@ -248,28 +324,6 @@ public class Player : MonoBehaviour {
             startTouchPosition = Vector2.zero;                                                              // Reset the start touch position
             onGround = true;                                                                                // Set the onGround flag to true
         }
-
-        // Get all Colliders on the map
-        Collider2D[] colliders = FindObjectsOfType<Collider2D>();                                           // Get all colliders in the scene
-
-        foreach (var c in colliders)
-        Debug.LogWarning(c.bounds);
-
-        Debug.LogWarning(colliders.Length);
-        foreach (Collider2D collider in colliders) {                                                        // Loop through all the colliders
-        if (collider == spriteCollider) continue;                                                            // Skip the sprite collider
-            if (collider.bounds.Contains(spriteCollider.bounds.min) ||                                       // Check if the sprite is touching the collider
-                collider.bounds.Contains(spriteCollider.bounds.max)) {                                      // Check if the sprite is touching the collider
-
-                camera.transform.position = new Vector3(CameraX, CameraY, CameraZ);                         // Set the camera to the ground
-                isRising = false;                                                                           // Set the isRising flag to false
-                fallSpeed = 0;                                                                              // Reset the fallSpeed
-                riseSpeed = 0;                                                                              // Reset the riseSpeed
-                currentTouchPosition = Vector2.zero;                                                        // Reset the current touch position
-                startTouchPosition = Vector2.zero;                                                          // Reset the start touch position
-                onGround = true;                                                                            // Set the onGround flag to true
-            }
-        }
     }
 
 
@@ -278,23 +332,54 @@ public class Player : MonoBehaviour {
     /// </summary>
     void OnGUI() {
 
-        GUI.Label(new Rect(10, 10, 100, 20), "--- DEBUG RUNNING ---", new GUIStyle() { fontSize = 50, fontStyle = FontStyle.Bold, normal = new GUIStyleState() { textColor = Color.red }});
+#if UNITY_EDITOR // Preprocessor directive to check if the game is running in the Unity Editor
+        // GUI.Label(new Rect(10, 10, 100, 20), "--- DEBUG RUNNING ---", new GUIStyle() { fontSize = 50, fontStyle = FontStyle.Bold, normal = new GUIStyleState() { textColor = Color.red }});
 
-        // fps
-        GUI.Label(new Rect(10, 50, 100, 20), "FPS: " + (1.0f / Time.deltaTime), new GUIStyle() { fontSize = 50 });
+        // // fps
+        // GUI.Label(new Rect(10, 50, 100, 20), "FPS: " + (1.0f / Time.deltaTime), new GUIStyle() { fontSize = 50 });
 
-        // camera position
-        GUI.Label(new Rect(10, 100, 100, 20), "Camera X: " + CameraX, new GUIStyle() { fontSize = 50 });
-        GUI.Label(new Rect(10, 150, 100, 20), "Camera Y: " + CameraY, new GUIStyle() { fontSize = 50 });
-        GUI.Label(new Rect(10, 200, 100, 20), "Camera Z: " + CameraZ, new GUIStyle() { fontSize = 50 });
+        // // camera position
+        // GUI.Label(new Rect(10, 100, 100, 20), "Camera X: " + CameraX, new GUIStyle() { fontSize = 50 });
+        // GUI.Label(new Rect(10, 150, 100, 20), "Camera Y: " + CameraY, new GUIStyle() { fontSize = 50 });
+        // GUI.Label(new Rect(10, 200, 100, 20), "Camera Z: " + CameraZ, new GUIStyle() { fontSize = 50 });
 
-        // rise speed
-        GUI.Label(new Rect(10, 250, 100, 20), "Rise Speed: " + riseSpeed, new GUIStyle() { fontSize = 50 });
+        // // rise speed
+        // GUI.Label(new Rect(10, 250, 100, 20), "Rise Speed: " + riseSpeed, new GUIStyle() { fontSize = 50 });
 
-        // fall speed
-        GUI.Label(new Rect(10, 300, 100, 20), "Fall Speed: " + fallSpeed, new GUIStyle() { fontSize = 50 });
+        // // fall speed
+        // GUI.Label(new Rect(10, 300, 100, 20), "Fall Speed: " + fallSpeed, new GUIStyle() { fontSize = 50 });
 
-        // is rising
-        GUI.Label(new Rect(10, 350, 100, 20), "Is Rising: " + isRising, new GUIStyle() { fontSize = 50 , normal = new GUIStyleState() { textColor = isRising ? Color.green : Color.red }});
+        // // is rising
+        // GUI.Label(new Rect(10, 350, 100, 20), "Is Rising: " + isRising, new GUIStyle() { fontSize = 50 , normal = new GUIStyleState() { textColor = isRising ? Color.green : Color.red }});
+#endif
+
+        string _score = $"Score: {score.ToString("0.00")}m";
+        string _height = $"Height: {cameraYPos:0.00m}";
+        string _gas = $"Gas: {gas:0.00}";
+
+        DrawOutlinedText(_score, new Vector2(10, 10));
+        DrawOutlinedText(_height, new Vector2(10, 60));
+
+        DrawOutlinedText(_gas, new Vector2(10, Screen.height - 50));
+    }
+
+    void DrawOutlinedText(string text, Vector2 position) {
+
+        GUIStyle style = new GUIStyle() { fontSize = 50, fontStyle = FontStyle.Bold, normal = new GUIStyleState() { textColor = Color.black } };
+
+        // Draw the outline
+        GUI.Label(new Rect(position.x - 1, position.y - 1, 100, 20), text, style);
+        GUI.Label(new Rect(position.x + 1, position.y + 1, 100, 20), text, style);
+        GUI.Label(new Rect(position.x - 1, position.y + 1, 100, 20), text, style);
+        GUI.Label(new Rect(position.x + 1, position.y - 1, 100, 20), text, style);
+
+        GUI.Label(new Rect(position.x + 2, position.y, 100, 20), text, style);
+        GUI.Label(new Rect(position.x - 2, position.y, 100, 20), text, style);
+        GUI.Label(new Rect(position.x, position.y + 2, 100, 20), text, style);
+        GUI.Label(new Rect(position.x, position.y - 2, 100, 20), text, style);
+
+        // Draw the text
+        style.normal.textColor = Color.white;
+        GUI.Label(new Rect(position.x, position.y, 100, 20), text, style);
     }
 }
