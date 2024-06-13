@@ -23,11 +23,17 @@ public class SpawnBeans : MonoBehaviour {
 
     public void Restart() {
 
+        lastY = 0;
+
+        // Destroy all beans
+        if (beans != null)
+            foreach (GameObject bean in beans)
+                DestroyImmediate(bean);                                                                             // Destroy the bean
+
         beans = new GameObject[beanCount];                                                                  // Initialize the array of beans
 
         // Loop through the number of beans to spawn
-        for (int i = 0; i < beanCount; i++)
-        {
+        for (int i = 0; i < beanCount; i++) {
 
             // Generate spawn position
             float x = RandomX;                                                                              // Randomize the x position of the bean

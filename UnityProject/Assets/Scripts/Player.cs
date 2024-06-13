@@ -1,8 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Burst.Intrinsics;
 using UnityEngine;
 
 public class Player : MonoBehaviour {
+
+    bool endOfGame = false;
 
     #region Player
 
@@ -35,6 +38,7 @@ public class Player : MonoBehaviour {
     #region HighScore Marker
 
     float highScore = 100;                                                                                  // The high score
+    float lastHighScore = 100;                                                                                // The last high score
 
     [SerializeField]
     GameObject highScoreMarker;                                                                             // The high score marker (sprite graphic)
@@ -198,7 +202,7 @@ public class Player : MonoBehaviour {
 
     public void Restart() {
 
-        Debug.Log("Restarting Player");                                                                       // Log that the game is restarting
+        lastHighScore = highScore;                                                                                   // Set the last high score
 
         // Reset the player
         score = 0;                                                                                          // Reset the score
@@ -220,6 +224,8 @@ public class Player : MonoBehaviour {
             screamQueue.Enqueue(screamSounds[Random.Range(0, screamSounds.Length - 1)]);                    // Add a random scream sound effect to the queue
             screamQueue.Enqueue(inhaleSound);                                                               // Add the inhale sound effect to the queue
         }
+
+        endOfGame = false;
     }
 
     // Update is called once per frame
@@ -246,9 +252,12 @@ public class Player : MonoBehaviour {
 
     private void ShowRestartButton() {
 
-      // Find a button called Button and make it active
-        GameObject.Find("Button").SetActive(true);
+        if (endOfGame) return;
+
+        GameObject.Find("Button").GetComponent<UnityEngine.UI.Button>().transform.position -= new Vector3(0, 10000, 0);                                           // Move the button to the middle of the screen
         GameObject.Find("Button").GetComponent<UnityEngine.UI.Button>().interactable = true;
+
+        endOfGame = true;
     }
 
     private void ProcessScreamQueue() {
@@ -266,6 +275,8 @@ public class Player : MonoBehaviour {
     /// Get the user input and move the player accordingly
     /// </summary>
     void GetUserInput() {
+
+        if (endOfGame) return;
 
         // Touch input
         if (Input.touchCount == 1) {                                                                        // Check if there is a touch input (only one touch at a time for better control)
@@ -386,7 +397,7 @@ public class Player : MonoBehaviour {
         if (score > highScore)                                                                              // Check if the score is higher than the high score
             highScore = score;                                                                              // Set the new high score
 
-        highScoreMarker.transform.position = new Vector3(highScoreMarker.transform.position.x, highScore-1, highScoreMarker.transform.position.z); // Move the high score marker
+        highScoreMarker.transform.position = new Vector3(highScoreMarker.transform.position.x, lastHighScore-1, highScoreMarker.transform.position.z); // Move the high score marker
     }
 
     /// <summary>
@@ -404,7 +415,9 @@ public class Player : MonoBehaviour {
                 if (collider.gameObject.CompareTag("BeanPickup")) {                                         // Check if the collider is a bean pickup
 
                     gas += 100;                                                                             // Increase the players gas
-                    Destroy(collider.gameObject);                                                           // Remove the object
+
+                    collider.gameObject.GetComponent<BeanPickup>().EatBean();                                // Eat the bean
+                    //Destroy(collider.gameObject);                                                           // Remove the object
                 }
             }
     }
@@ -488,13 +501,20 @@ public class Player : MonoBehaviour {
         // GUI.Label(new Rect(10, 350, 100, 20), "Is Rising: " + isRising, new GUIStyle() { fontSize = 50 , normal = new GUIStyleState() { textColor = isRising ? Color.green : Color.red }});
 #endif
 
-        string _score = $"Score:  {score.ToString("0.00")} m";
-        string _height = $"Height: {cameraYPos:0.00 m}";
+        string _score = $"Score:";
+        string _highScore = $"High Score:";
+        string _height = $"Height:";
         string _gas = $"Gas: {gas:0.00} mB";
-        string _speed = $"Speed: {(riseSpeed-fallSpeed)*120:0.00} m/s";
+        string _speed = $"Speed: {(riseSpeed-fallSpeed)*60:0.00} m/s";
 
         DrawOutlinedText(_score, new Vector2(50, 10));
-        DrawOutlinedText(_height, new Vector2(50, 60));
+        DrawOutlinedText($"{score:0.00} m", new Vector2(400, 10));
+
+        DrawOutlinedText(_highScore, new Vector2(50, 60));
+        DrawOutlinedText($"{highScore:0.00} m", new Vector2(400, 60));
+
+        DrawOutlinedText(_height, new Vector2(50, 110));
+        DrawOutlinedText($"{cameraYPos:0.00} m", new Vector2(400,110));
 
         DrawOutlinedText(_gas, new Vector2(50, Screen.height - 50));
         DrawOutlinedText(_speed, new Vector2(50, Screen.height - 100));

@@ -24,6 +24,10 @@ public class SpawnDoodads : MonoBehaviour {
 
     public void Restart() {
 
+        // Destroy all satellites
+        // foreach (GameObject satellite in satellites)
+        //     Destroy(satellite);                                                                             // Destroy the satellite
+
         // Initialize the array of satellites
         satellites = new GameObject[satelliteCount];                                                        // Initialize the array of doodads
         satellitesShadow = new GameObject[satelliteCount];                                                  // Initialize the array of doodads shadows
